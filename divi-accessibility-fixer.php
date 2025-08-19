@@ -6,7 +6,7 @@
  * Author: Eve
  * License: GPL v2 or later
  * 
- * IMPORTANT: This is a minimal, safe version to prevent site crashes
+ * IMPORTANT: This is a plugin that help is add roles and tags to Divi themes to improve accessibility.
  */
 
 // Prevent direct access
@@ -157,16 +157,19 @@ if (!class_exists('DiviAccessibilityFixer')) {
                         console.log('✓ Skip link already exists');
                     }
                     
-                    // AGGRESSIVE landmark addition - force add even if others exist
+                    // Target the CORRECT main content area
                     var mainContent = document.querySelector('#main-content');
                     if (mainContent && !document.querySelector('[role="main"]')) {
                         mainContent.setAttribute('role', 'main');
+                        mainContent.setAttribute('aria-label', 'Main content');
+                        console.log('✓ Main landmark added to #main-content');
                     }
-
                     
-                    // Add navigation landmarks to menus
-                    var menus = document.querySelectorAll('.et_pb_menu, nav, .et_mobile_nav_menu');
-                    menus.forEach(function(menu, index) {
+                    // COMPREHENSIVE menu fixes - target ALL menu types
+                    var allMenus = document.querySelectorAll(
+                        '.et_pb_menu, nav, .et_mobile_nav_menu, .et_pb_menu__menu, .et-menu-nav, #main-navigation'
+                    );
+                    allMenus.forEach(function(menu, index) {
                         if (!menu.getAttribute('role')) {
                             menu.setAttribute('role', 'navigation');
                             menu.setAttribute('aria-label', 'Site navigation ' + (index + 1));
@@ -174,21 +177,60 @@ if (!class_exists('DiviAccessibilityFixer')) {
                         }
                     });
                     
-                    // Add banner role to header
-                    var headers = document.querySelectorAll('header, .et-l--header');
+                    // Fix menu dropdown states - this is what the scanner is complaining about
+                    var dropdownMenus = document.querySelectorAll('.menu-item-has-children > a');
+                    dropdownMenus.forEach(function(menuLink, index) {
+                        if (!menuLink.getAttribute('aria-expanded')) {
+                            menuLink.setAttribute('aria-expanded', 'false');
+                            menuLink.setAttribute('aria-haspopup', 'true');
+                            console.log('✓ Dropdown state added to menu item', index + 1);
+                            
+                            // Add click handler to update aria-expanded
+                            menuLink.addEventListener('click', function() {
+                                var isExpanded = menuLink.getAttribute('aria-expanded') === 'true';
+                                menuLink.setAttribute('aria-expanded', !isExpanded);
+                            });
+                        }
+                    });
+                    
+                    // Also fix mobile menu dropdowns
+                    var mobileDropdowns = document.querySelectorAll('.et_mobile_menu .menu-item-has-children > a');
+                    mobileDropdowns.forEach(function(mobileLink, index) {
+                        if (!mobileLink.getAttribute('aria-expanded')) {
+                            mobileLink.setAttribute('aria-expanded', 'false');
+                            mobileLink.setAttribute('aria-haspopup', 'true');
+                            console.log('✓ Mobile dropdown state added', index + 1);
+                        }
+                    });
+                    
+                    // Add banner role to header - target the actual header structure
+                    var headers = document.querySelectorAll('header, .et-l--header, #et-boc .et-l--header');
                     headers.forEach(function(header) {
                         if (!header.getAttribute('role')) {
                             header.setAttribute('role', 'banner');
+                            header.setAttribute('aria-label', 'Site header');
                             console.log('✓ Banner landmark added to header');
                         }
                     });
                     
-                    // Add contentinfo role to footer
-                    var footers = document.querySelectorAll('footer, .et-l--footer');
+                    // Add contentinfo role to footer - target the actual footer structure  
+                    var footers = document.querySelectorAll('footer, .et-l--footer, #et-boc .et-l--footer');
                     footers.forEach(function(footer) {
                         if (!footer.getAttribute('role')) {
                             footer.setAttribute('role', 'contentinfo');
+                            footer.setAttribute('aria-label', 'Site footer');
                             console.log('✓ Contentinfo landmark added to footer');
+                        }
+                    });
+                    
+                    // Add complementary role to sidebars
+                    var sidebars = document.querySelectorAll('.sidebar, .et_pb_sidebar, .widget-area, .et_pb_column_1_4');
+                    sidebars.forEach(function(sidebar, index) {
+                        // Only add to sidebars that contain widgets/sidebar content
+                        if (sidebar.querySelector('.widget, .et_pb_widget, .sidebar') && !sidebar.getAttribute('role')) {
+                            sidebar.setAttribute('role', 'complementary');
+                            sidebar.setAttribute('aria-label', 'Sidebar ' + (index + 1));
+                            console.log('✓ Complementary landmark added to sidebar', index + 1);
                         }
                     });
                     
@@ -231,15 +273,41 @@ if (!class_exists('DiviAccessibilityFixer')) {
                         console.log('✓ Added labels to', inputs.length, 'form inputs');
                     }
                     
-                    // Final report
+                    // Final comprehensive report
                     setTimeout(function() {
                         console.log('🎉 Divi Accessibility Plugin: Initialization complete!');
-                        console.log('📊 Landmarks check:');
-                        console.log('   Main:', document.querySelectorAll('[role="main"]').length);
-                        console.log('   Navigation:', document.querySelectorAll('[role="navigation"]').length);
-                        console.log('   Banner:', document.querySelectorAll('[role="banner"]').length);
-                        console.log('   Contentinfo:', document.querySelectorAll('[role="contentinfo"]').length);
-                    }, 100);
+                        console.log('📊 Comprehensive Landmarks Check:');
+                        
+                        var mainCount = document.querySelectorAll('[role="main"]').length;
+                        var navCount = document.querySelectorAll('[role="navigation"]').length;
+                        var bannerCount = document.querySelectorAll('[role="banner"]').length;
+                        var contentinfoCount = document.querySelectorAll('[role="contentinfo"]').length;
+                        var complementaryCount = document.querySelectorAll('[role="complementary"]').length;
+                        
+                        console.log('   ✓ Main:', mainCount, mainCount >= 1 ? '(Good)' : '(Missing!)');
+                        console.log('   ✓ Navigation:', navCount, navCount >= 1 ? '(Good)' : '(Missing!)');
+                        console.log('   ✓ Banner:', bannerCount, bannerCount >= 1 ? '(Good)' : '(Missing!)');
+                        console.log('   ✓ Contentinfo:', contentinfoCount, contentinfoCount >= 1 ? '(Good)' : '(Missing!)');
+                        console.log('   ✓ Complementary:', complementaryCount);
+                        
+                        console.log('📊 Menu Accessibility Check:');
+                        var dropdownsWithStates = document.querySelectorAll('[aria-expanded]').length;
+                        var menuItems = document.querySelectorAll('.menu-item-has-children > a').length;
+                        console.log('   ✓ Dropdown states:', dropdownsWithStates + '/' + menuItems);
+                        
+                        console.log('📊 Form Accessibility Check:');
+                        var inputsWithLabels = document.querySelectorAll('input[aria-label]').length;
+                        var totalInputs = document.querySelectorAll('input').length;
+                        console.log('   ✓ Labeled inputs:', inputsWithLabels + '/' + totalInputs);
+                        
+                        // Show any remaining issues
+                        if (mainCount === 0) console.warn('⚠️ WARNING: No main landmark found!');
+                        if (navCount === 0) console.warn('⚠️ WARNING: No navigation landmarks found!');
+                        if (bannerCount === 0) console.warn('⚠️ WARNING: No banner landmark found!');
+                        if (contentinfoCount === 0) console.warn('⚠️ WARNING: No contentinfo landmark found!');
+                        
+                        console.log('🔍 To verify: Right-click → Inspect → Search for role="main" in HTML');
+                    }, 200);
                 }
                 
                 // Multiple initialization attempts to ensure it works
